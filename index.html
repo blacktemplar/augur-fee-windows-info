@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Augur Fee Window Infos</title>
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js"></script>
+    <script>
+      if (typeof web3 !== 'undefined') {
+        web3 = new Web3(web3.currentProvider);
+      } else {
+        // set the provider you want from Web3.providers
+        web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/augur"));
+      }
+      let workCounter = 1;
+
+      tryGetAsync(web3.version.getNode, [], function(res) {
+        console.log(res);
+      });
+
+      let universeABI = [{ "constant": true, "inputs": [], "name": "getCurrentFeeWindow", "outputs": [{ "name": "", "type": "address" }], "payable": false, "stateMutability": "view", "type": "function" },
+        { "constant": true, "inputs": [], "name": "getNextFeeWindow", "outputs": [{ "name": "", "type": "address" }], "payable": false, "stateMutability": "view", "type": "function" }];
+      let universeContract = web3.eth.contract(universeABI);
+      let universe = universeContract.at('0xE991247b78F937D7B69cFC00f1A487A293557677');
+
+      let cashABI = [{ "constant": true, "inputs": [{ "name": "_owner", "type": "address" }], "name": "balanceOf", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }];
+      let cashContract = web3.eth.contract(cashABI);
+      let cash = cashContract.at('0xd5524179cB7AE012f5B642C1D6D700Bbaa76B96b');
+
+      let feeWindowABI = [{ "constant": true, "inputs": [], "name": "getTotalFeeStake", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }];
+      let feeWindowContract = web3.eth.contract(feeWindowABI);
+      let rep_eth_price = null;
+      let gas_price = null;
+
+      tryGetAsync(getRepEthPrice, [], function(price) {
+        rep_eth_price = price;
+        document.getElementById("rep-eth-price").value = price;
+      });
+
+      tryGetAsync(getGasPrice, [], function(price) {
+        gas_price = price;
+        document.getElementById("gas-price").value = price;
+      });
+
+      let feeCurrent = null;
+      let stakeCurrent = null;
+      tryGetAsync(universe.getCurrentFeeWindow, [], function(currentFeeWindow) {
+        document.getElementById("current-fee-window").innerText = currentFeeWindow;
+        tryGetAsync(cash.balanceOf, [currentFeeWindow], function(balance) {
+          feeCurrent = getETH(balance);
+          document.getElementById("fee-current").innerText = feeCurrent;
+          if (stakeCurrent !== null) {
+            document.getElementById("profit-per-rep").innerText = feeCurrent / stakeCurrent;
+          }
+        });
+        let feeWindow = feeWindowContract.at(currentFeeWindow);
+        tryGetAsync(feeWindow.getTotalFeeStake, [], function(totalFeeStake) {
+          stakeCurrent = getREP(totalFeeStake);
+          document.getElementById("total-fee-stake").innerText = stakeCurrent;
+          if (feeCurrent !== null) {
+            document.getElementById("profit-per-rep").innerText = feeCurrent / stakeCurrent;
+          }
+        });
+      });
+      tryGetAsync(universe.getNextFeeWindow, [], function(nextFeeWindow) {
+        document.getElementById("next-fee-window").innerText = nextFeeWindow;
+        tryGetAsync(cash.balanceOf, [nextFeeWindow], function(balance) {
+          document.getElementById("fee-next").innerText = getETH(balance);
+        });
+      });
+
+      reduceWorkCounter();
+
+      function getHttp(url, callback) {
+        let xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+          if (this.readyState == 4 && this.status == 200) {
+            if (this.status !== 200) {
+              callback("Couldn't get http site", null);
+            } else {
+              callback(null, this.responseText);
+            }
+          }
+        };
+        xhttp.open("GET", url, true);
+        xhttp.send();
+      }
+
+      function getJsonHttp(url, callback) {
+        getHttp(url, function(error, result) {
+          if (!error) {
+            let json = null;
+            try {
+              json = JSON.parse(result);
+            }
+            catch(err) {
+              callback(err, result);
+              return;
+            }
+            callback(error, json);
+          } else {
+            callback(error, result);
+          }
+        })
+      }
+
+      function getRepEthPrice(callback) {
+        getJsonHttp("https://min-api.cryptocompare.com/data/price?fsym=REP&tsyms=ETH", function (error, result) {
+          if (!!error) {
+            callback(error, result);
+          } else if (!result || !result.ETH) {
+            callback("No ETH price returned", result);
+          } else {
+            callback(null, result.ETH);
+          }
+        });
+      }
+
+      function getGasPrice(callback) {
+        getJsonHttp("https://ethgasstation.info/json/ethgasAPI.json", function (error, result) {
+          if (!!error) {
+            callback(error, result);
+          } else if (!result || !result.safeLow) {
+            callback("No ETH price returned", result);
+          } else {
+            callback(null, result.safeLow / 10);
+          }
+        });
+      }
+
+      function getETH(x) {
+        return getUnit(x, 18);
+      }
+
+      function getREP(x) {
+        return getUnit(x, 18);
+      }
+
+      function getUnit(x, digits) {
+        return x.dividedBy('1e' + digits.toString()).toNumber();
+      }
+
+      function tryGetAsync(fn, args = [], callback, numRetries = 0) {
+        workCounter += 1;
+        if (numRetries > 5) {
+          console.log("Fatal Error: Couldn't call " + fn.toString() + " after 5 retries");
+          reduceWorkCounter();
+        }
+        else {
+          fn(...args, function (error, result) {
+            if (!error) {
+              callback(result);
+              reduceWorkCounter();
+            } else {
+              console.log("Error: "+ error.toString() + " in function " + fn.toString());
+              tryGetAsync(fn, args, callback, numRetries + 1);
+            }
+          });
+        }
+      }
+
+      function reduceWorkCounter() {
+        workCounter -= 1;
+        if (workCounter === 0) {
+          recalculate();
+          document.getElementById("loading").style.display = "none";
+          document.getElementById("content").style.display = "block";
+          console.log("Finished");
+        }
+      }
+
+      function recalculate() {
+        if (workCounter === 0) {
+          const rep_price = document.getElementById("rep-eth-price").value * 1;
+          const gas_price = document.getElementById("gas-price").value * 1;
+          const gas_used = document.getElementById("gas-used").value * 1;
+          const num_rep = document.getElementById("num-rep").value * 1;
+          if (!isNaN(rep_price) && !isNaN(gas_price) && !isNaN(gas_used) && !isNaN(num_rep)) {
+            const gas_cost = gas_price * gas_used / 1e9;
+            const total_fee_profit = feeCurrent * num_rep / (stakeCurrent + num_rep);
+            const total_profit = total_fee_profit - gas_cost;
+            const profit_per_rep = total_profit / num_rep;
+            const profit_percent = total_profit / (gas_cost + num_rep * rep_price);
+            document.getElementById("gas-cost").innerText = gas_cost;
+            document.getElementById("fee-profit").innerText = total_fee_profit;
+            document.getElementById("profit").innerText = total_profit;
+            document.getElementById("profit-per-rep2").innerText = profit_per_rep;
+            document.getElementById("profit-percent").innerText = profit_percent * 100;
+            document.getElementById("profit-percent-pa").innerText = (Math.pow(1 + profit_percent, 365 / 7) - 1) * 100;
+            const divisor = feeCurrent - gas_cost;
+            let breakEven = "Infinity";
+            let maxProfit = 0;
+            if (divisor > 0) {
+              breakEven = gas_cost * stakeCurrent / divisor;
+              maxProfit = breakEven + Math.sqrt(breakEven * (breakEven + stakeCurrent));
+            }
+            document.getElementById("break-even").innerText = breakEven;
+            document.getElementById("max-prof-rep").innerText = maxProfit;
+          }
+        }
+      }
+    </script>
+</head>
+<body>
+<div id="content" style="display: none">
+    <h1>Augur Fee Window Infos</h1>
+    <div>Current Fee Window Address: <span id="current-fee-window"></span></div>
+    <div>Fees in Current Fee Window: <span id="fee-current"></span> ETH</div>
+    <div>Total Stake in Current Fee Window: <span id="total-fee-stake"></span> REP</div>
+    <div>Profit per REP: <span id="profit-per-rep"></span> ETH/REP</div>
+    <br>
+    <div>Next Fee Window Address: <span id="next-fee-window"></span></div>
+    <div>Fees in Next Fee Window: <span id="fee-next"></span> ETH</div>
+
+    <h2>Participation Rentability Calculator</h2>
+    <div>REP price (by CryptoCompare): <input id="rep-eth-price" name="rep-eth-price" onChange="recalculate()"/> ETH</div>
+    <div>Gas price (by ETH Gas Station): <input id="gas-price" name="gas-price" onChange="recalculate()"/> Gwei</div>
+    <div>Gas used: <input id="gas-used" name="gas-used" value="149153" onChange="recalculate()"/></div>
+    <div>Number of REP: <input id="num-rep" name="num-rep" value="0" onChange="recalculate()"/></div>
+    <h3>Result</h3>
+    <div>Total gas cost: <span id="gas-cost"></span> ETH</div>
+    <div>Total fee profit: <span id="fee-profit"></span> ETH</div>
+    <div>Total profit: <span id="profit"></span> ETH</div>
+    <div>Profit per REP: <span id="profit-per-rep2"></span> ETH</div>
+    <div>Profit in %: <span id="profit-percent"></span>%</div>
+    <div>Profit in % p.a.: <span id="profit-percent-pa"></span>%</div>
+    <br>
+    <div>Number of REP to break even: <span id="break-even"></span> REP</div>
+    <div>Number of REP for maximizing profit in %: <span id="max-prof-rep"></span> REP</div>
+</div>
+<div id="loading">Loading ...</div>
+</body>
+</html>
