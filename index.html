@@ -11,6 +11,12 @@
         // set the provider you want from Web3.providers
         web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/augur"));
       }
+
+      Number.prototype.pad = function(size) {
+        let sign = Math.sign(this) === -1 ? '-' : '';
+        return sign + new Array(size).concat([Math.abs(this)]).join('0').slice(-size);
+      };
+
       let workCounter = 1;
 
       let universeABI = [{ "constant": true, "inputs": [], "name": "getCurrentFeeWindow", "outputs": [{ "name": "", "type": "address" }], "payable": false, "stateMutability": "view", "type": "function" },
@@ -40,6 +46,7 @@
 
       let feeCurrent = null;
       let stakeCurrent = null;
+      let date = null;
       tryGetAsync(universe.getCurrentFeeWindow, [], function(currentFeeWindow) {
         document.getElementById("current-fee-window").innerText = currentFeeWindow;
         tryGetAsync(cash.balanceOf, [currentFeeWindow], function(balance) {
@@ -60,8 +67,9 @@
           }
         });
         tryGetAsync(feeWindow.getEndTime, [], function(endTime) {
-          let date = new Date(endTime.toNumber() * 1000);
+          date = new Date(endTime.toNumber() * 1000);
           document.getElementById("current-fee-window-end").innerText = date.toUTCString();
+          computeTimeUntilEnd();
         });
       });
       tryGetAsync(universe.getNextFeeWindow, [], function(nextFeeWindow) {
@@ -72,6 +80,22 @@
       });
 
       reduceWorkCounter();
+
+      function computeTimeUntilEnd() {
+        let milliseconds = date - new Date();
+        let t = Math.round(milliseconds / 1000);
+        let secs = t % 60;
+        t = Math.floor(t / 60);
+        let minutes = t % 60;
+        t = Math.floor(t / 60);
+        document.getElementById("current-fee-window-ends-in").innerText =
+          (t > 9 ? t : t.pad(2)) + ":" + minutes.pad(2) + ":" + secs.pad(2);
+        let sleep = milliseconds % 1000;
+        if (sleep < 100) {
+          sleep = 1000;
+        }
+        window.setTimeout(computeTimeUntilEnd, sleep);
+      }
 
       function getHttp(url, callback) {
         let xhttp = new XMLHttpRequest();
@@ -213,6 +237,7 @@
     <div>Total Stake in Current Fee Window: <span id="total-fee-stake"></span> REP</div>
     <div>Profit per REP: <span id="profit-per-rep"></span> ETH/REP</div>
     <div>Current Fee Window End Time: <span id="current-fee-window-end"></span></div>
+    <div>Current Fee Window Ends in: <span id="current-fee-window-ends-in"></span></div>
     <br>
     <div>Next Fee Window Address: <span id="next-fee-window"></span></div>
     <div>Fees in Next Fee Window: <span id="fee-next"></span> ETH</div>
