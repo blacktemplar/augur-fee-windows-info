@@ -224,6 +224,7 @@
             }
             document.getElementById("break-even").innerText = breakEven;
             document.getElementById("max-prof-rep").innerText = maxProfit;
+            document.getElementById("gas-price-break-even").innerText = total_fee_profit / gas_used * 1e9;
           }
         }
       }
@@ -258,6 +259,7 @@
     <div>Profit in % p.a.: <span id="profit-percent-pa"></span>%</div>
     <br>
     <div>Number of REP to break even: <span id="break-even"></span> REP</div>
+    <div>Gas price to break even: <span id="gas-price-break-even"></span> Gwei</div>
     <div>Number of REP for maximizing profit in %: <span id="max-prof-rep"></span> REP</div>
 </div>
 <div id="loading">Loading ...</div>
