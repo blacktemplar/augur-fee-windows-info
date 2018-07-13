@@ -13,10 +13,6 @@
       }
       let workCounter = 1;
 
-      tryGetAsync(web3.version.getNode, [], function(res) {
-        console.log(res);
-      });
-
       let universeABI = [{ "constant": true, "inputs": [], "name": "getCurrentFeeWindow", "outputs": [{ "name": "", "type": "address" }], "payable": false, "stateMutability": "view", "type": "function" },
         { "constant": true, "inputs": [], "name": "getNextFeeWindow", "outputs": [{ "name": "", "type": "address" }], "payable": false, "stateMutability": "view", "type": "function" }];
       let universeContract = web3.eth.contract(universeABI);
@@ -26,7 +22,8 @@
       let cashContract = web3.eth.contract(cashABI);
       let cash = cashContract.at('0xd5524179cB7AE012f5B642C1D6D700Bbaa76B96b');
 
-      let feeWindowABI = [{ "constant": true, "inputs": [], "name": "getTotalFeeStake", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }];
+      let feeWindowABI = [{ "constant": true, "inputs": [], "name": "getTotalFeeStake", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" },
+        { "constant": true, "inputs": [], "name": "getEndTime", "outputs": [{ "name": "", "type": "uint256" }], "payable": false, "stateMutability": "view", "type": "function" }];
       let feeWindowContract = web3.eth.contract(feeWindowABI);
       let rep_eth_price = null;
       let gas_price = null;
@@ -48,6 +45,7 @@
         tryGetAsync(cash.balanceOf, [currentFeeWindow], function(balance) {
           feeCurrent = getETH(balance);
           document.getElementById("fee-current").innerText = feeCurrent;
+          document.getElementById("fees-input").value = feeCurrent;
           if (stakeCurrent !== null) {
             document.getElementById("profit-per-rep").innerText = feeCurrent / stakeCurrent;
           }
@@ -56,9 +54,14 @@
         tryGetAsync(feeWindow.getTotalFeeStake, [], function(totalFeeStake) {
           stakeCurrent = getREP(totalFeeStake);
           document.getElementById("total-fee-stake").innerText = stakeCurrent;
+          document.getElementById("stake-input").value = stakeCurrent;
           if (feeCurrent !== null) {
             document.getElementById("profit-per-rep").innerText = feeCurrent / stakeCurrent;
           }
+        });
+        tryGetAsync(feeWindow.getEndTime, [], function(endTime) {
+          let date = new Date(endTime.toNumber() * 1000);
+          document.getElementById("current-fee-window-end").innerText = date.toUTCString();
         });
       });
       tryGetAsync(universe.getNextFeeWindow, [], function(nextFeeWindow) {
@@ -174,9 +177,11 @@
           const gas_price = document.getElementById("gas-price").value * 1;
           const gas_used = document.getElementById("gas-used").value * 1;
           const num_rep = document.getElementById("num-rep").value * 1;
+          const fees = document.getElementById("fees-input").value * 1;
+          const stake = document.getElementById("stake-input").value * 1;
           if (!isNaN(rep_price) && !isNaN(gas_price) && !isNaN(gas_used) && !isNaN(num_rep)) {
             const gas_cost = gas_price * gas_used / 1e9;
-            const total_fee_profit = feeCurrent * num_rep / (stakeCurrent + num_rep);
+            const total_fee_profit = fees * num_rep / (stake + num_rep);
             const total_profit = total_fee_profit - gas_cost;
             const profit_per_rep = total_profit / num_rep;
             const profit_percent = total_profit / (gas_cost + num_rep * rep_price);
@@ -186,12 +191,12 @@
             document.getElementById("profit-per-rep2").innerText = profit_per_rep;
             document.getElementById("profit-percent").innerText = profit_percent * 100;
             document.getElementById("profit-percent-pa").innerText = (Math.pow(1 + profit_percent, 365 / 7) - 1) * 100;
-            const divisor = feeCurrent - gas_cost;
+            const divisor = fees - gas_cost;
             let breakEven = "Infinity";
             let maxProfit = 0;
             if (divisor > 0) {
-              breakEven = gas_cost * stakeCurrent / divisor;
-              maxProfit = breakEven + Math.sqrt(breakEven * (breakEven + stakeCurrent));
+              breakEven = gas_cost * stake / divisor;
+              maxProfit = breakEven + Math.sqrt(breakEven * (breakEven + stake));
             }
             document.getElementById("break-even").innerText = breakEven;
             document.getElementById("max-prof-rep").innerText = maxProfit;
@@ -207,6 +212,7 @@
     <div>Fees in Current Fee Window: <span id="fee-current"></span> ETH</div>
     <div>Total Stake in Current Fee Window: <span id="total-fee-stake"></span> REP</div>
     <div>Profit per REP: <span id="profit-per-rep"></span> ETH/REP</div>
+    <div>Current Fee Window End Time: <span id="current-fee-window-end"></span></div>
     <br>
     <div>Next Fee Window Address: <span id="next-fee-window"></span></div>
     <div>Fees in Next Fee Window: <span id="fee-next"></span> ETH</div>
@@ -215,7 +221,9 @@
     <div>REP price (by CryptoCompare): <input id="rep-eth-price" name="rep-eth-price" onChange="recalculate()"/> ETH</div>
     <div>Gas price (by ETH Gas Station): <input id="gas-price" name="gas-price" onChange="recalculate()"/> Gwei</div>
     <div>Gas used: <input id="gas-used" name="gas-used" value="149153" onChange="recalculate()"/></div>
-    <div>Number of REP: <input id="num-rep" name="num-rep" value="1" onChange="recalculate()"/></div>
+    <div>Number of REP: <input id="num-rep" name="num-rep" value="1" onChange="recalculate()"/> REP</div>
+    <div>Fees in Current Fee Window: <input id="fees-input" name="gas-used" value="0" onChange="recalculate()"/> ETH</div>
+    <div>Total Stake in Current Fee Window: <input id="stake-input" name="num-rep" value="0" onChange="recalculate()"/> REP</div>
     <h3>Result</h3>
     <div>Total gas cost: <span id="gas-cost"></span> ETH</div>
     <div>Total fee profit: <span id="fee-profit"></span> ETH</div>
