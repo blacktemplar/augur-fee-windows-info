@@ -1,17 +1,18 @@
 {
   "name": "augur-fee-window-infos",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "",
-  "main": "src/ts/augurFeeWindows.ts",
+  "main": "lib/augurFeeWindows.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "webpack --watch --config webpack.dev.js",
     "start": "webpack-dev-server --open --config webpack.dev.js",
     "build": "webpack --config webpack.prod.js",
-    "deploy": "node_modules/.bin/push-dir --dir=dist --branch=gh-pages"
+    "deploy": "node_modules/.bin/push-dir --dir=dist --branch=gh-pages",
+    "buildLib": "tsc -p tsconfig-npm-lib.json"
   },
   "files": [
-    "src/ts/augurFeeWindows.ts"
+    "lib"
   ],
   "repository": {
     "type": "git",

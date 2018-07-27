@@ -1,15 +1,14 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
-    "noImplicitAny": true,
+    "outDir": "./lib/",
+    "declaration": true,
     "module": "es6",
     "target": "es5",
-    "allowJs": true,
-    "sourceMap": true,
     "moduleResolution": "node",
     "lib": [
       "es2017",
       "DOM"
     ]
-  }
+  },
+  "include": ["src/ts/augurFeeWindows.ts"]
 }
