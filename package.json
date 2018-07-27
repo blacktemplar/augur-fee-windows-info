@@ -2,7 +2,7 @@
   "name": "augur-fee-window-infos",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/ts/augurFeeWindows.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "webpack --watch --config webpack.dev.js",
@@ -10,12 +10,15 @@
     "build": "webpack --config webpack.prod.js",
     "deploy": "node_modules/.bin/push-dir --dir=dist --branch=gh-pages"
   },
+  "files": [
+    "src/ts/augurFeeWindows.ts"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/blacktemplar/augur-fee-windows-info.git"
   },
   "author": "",
-  "license": "ISC",
+  "license": "GPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/blacktemplar/augur-fee-windows-info/issues"
   },

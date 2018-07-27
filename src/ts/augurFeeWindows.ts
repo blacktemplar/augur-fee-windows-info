@@ -85,7 +85,7 @@ interface ParticipationRentabilityResult {
   numRepMaxProfitPerRep: BN  // in Wei(REP)
 }
 
-export class AugurFeeWindow {
+export default class AugurFeeWindow {
   private universeContract: any;
   private cashContract: any;
   private web3: Web3;
