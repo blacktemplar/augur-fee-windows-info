@@ -1,4 +1,4 @@
-import {AugurFeeWindow, FeeWindow} from './augurFeeWindows';
+import AugurFeeWindow, {FeeWindow} from './augurFeeWindows';
 import BN from 'bn.js';
 
 function pad(x: number, size: number): string {
