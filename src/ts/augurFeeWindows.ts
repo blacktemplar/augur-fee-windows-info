@@ -1,5 +1,5 @@
 import Web3 from 'web3';
-import BN from 'bn.js';
+import BigNumber from 'bignumber.js';
 
 const universeABI = [
   {
@@ -68,21 +68,21 @@ const DEFAULT_WEB3_PROVIDER = 'https://mainnet.infura.io/augur';
 
 export interface FeeWindow {
   address: string,
-  balance: BN,        // in Wei
-  totalFeeStake: BN,  // in Wei(REP)
+  balance: BigNumber,        // in ETH
+  totalFeeStake: BigNumber,  // in REP
   endTime: Date,
 }
 
 interface ParticipationRentabilityResult {
-  gasCost: BN,               // in Wei
-  totalFeeProfit: BN,        // in Wei
-  totalProfit: BN,           // in Wei
-  profitPerRep: number,      // ratio
-  profitPercent: number,     // percent 1 means 100%
-  profitPercentPA: number,   // percent 1 means 100%
-  numRepBreakEven: BN,       // in Wei(REP)
-  gasPriceBreakEven: BN,     // in Wei
-  numRepMaxProfitPerRep: BN  // in Wei(REP)
+  gasCost: BigNumber,               // in ETH
+  totalFeeProfit: BigNumber,        // in ETH
+  totalProfit: BigNumber,           // in ETH
+  profitPerRep: BigNumber,          // ratio
+  profitPercent: BigNumber,         // percent 1 means 100%
+  profitPercentPA: BigNumber,       // percent 1 means 100%
+  numRepBreakEven: BigNumber,       // in REP
+  gasPriceBreakEven: BigNumber,     // in ETH
+  numRepMaxProfitPerRep: BigNumber  // in REP
 }
 
 export default class AugurFeeWindow {
@@ -100,13 +100,13 @@ export default class AugurFeeWindow {
 
   /**
    *
-   * @returns {number} - Gas price in Wei
+   * @returns {number} - Gas price in ETH
    */
-  public async getGasPrice(): Promise<BN> {
+  public async getGasPrice(): Promise<BigNumber> {
     try {
       const res = await fetch('https://ethgasstation.info/json/ethgasAPI.json');
       const resJSON = await res.json() as { safeLow: number };
-      const gasPrice = this.web3.utils.toBN(resJSON.safeLow).mul(new BN(1e8));
+      const gasPrice = new BigNumber(resJSON.safeLow).shiftedBy(-10); //convert from Gwei*10 to ETH
 
       return gasPrice;
     } catch (err) {
@@ -116,13 +116,13 @@ export default class AugurFeeWindow {
 
   /**
    *
-   * @returns {number} - REP price in ETH
+   * @returns {BigNumber} - REP price in ETH
    */
-  public async getRepEthPrice(): Promise<number> {
+  public async getRepEthPrice(): Promise<BigNumber> {
     try {
       const res = await fetch('https://min-api.cryptocompare.com/data/price?fsym=REP&tsyms=ETH');
       const resJSON = await res.json() as { ETH: number };
-      const repEthPrice = resJSON.ETH;
+      const repEthPrice = new BigNumber(resJSON.ETH);
 
       return repEthPrice;
     } catch (err) {
@@ -169,52 +169,36 @@ export default class AugurFeeWindow {
     }
   }
 
-  public divBN(a: BN, b: BN): number {
-    if (a.eqn(0)) {
-      return 0;
-    }
-    if (a.lt(b)) {
-      return 1 / this.divBN(b, a);
-    }
-    if (b.ltn(0)) {
-      return - this.divBN(a, b.ineg());
-    }
-    if (a.bitLength() > 53) {
-      return a.div(b).toNumber() + this.divBN(a.mod(b), b);
-    }
-    return a.toNumber() / b.toNumber();
-  }
-
 
   /**
    * Calculates some profit values for the given input parameter
-   * @param {BN} fees - The fees in the fee window in Wei
-   * @param {BN} gasPrice - The gas price in Wei
-   * @param {BN} gasUsed - The used gas for both transactions (buying participation tokens and redeeming)
-   * @param {BN} rep - The number of used REP in Wei (10^(-18) REP)
-   * @param {number} repEthPrice the REP-ETH price
-   * @param {BN} stake the stake in the fee window in Wei(REP)
+   * @param {BigNumber} fees - The fees in the fee window in ETH
+   * @param {BigNumber} gasPrice - The gas price in ETH
+   * @param {BigNumber} gasUsed - The used gas for both transactions (buying participation tokens and redeeming)
+   * @param {BigNumber} rep - The number of used REP
+   * @param {BigNumber} repEthPrice the REP-ETH price
+   * @param {BigNumber} stake the stake in the fee window in REP
    * @returns {ParticipationRentabilityResult}
    */
-  public calculateParticipationRentability(fees: BN,
-                                                 gasPrice: BN,
-                                                 gasUsed: BN,
-                                                 rep: BN,
-                                                 repEthPrice: number,
-                                                 stake: BN): ParticipationRentabilityResult {
-    const gasCost = gasPrice.mul(gasUsed);
-    const totalFeeProfit = fees.mul(rep).div(stake.add(rep));
-    const totalProfit = totalFeeProfit.sub(gasCost);
-    const profitPerRep = this.divBN(totalProfit, rep);
-    const profitPercent = 1 / (this.divBN(gasCost, totalProfit) + this.divBN(rep, totalProfit) * repEthPrice);
-    const profitPercentPA = Math.pow(profitPercent + 1, 365 / 7) - 1;
+  public calculateParticipationRentability(fees: BigNumber,
+                                           gasPrice: BigNumber,
+                                           gasUsed: BigNumber,
+                                           rep: BigNumber,
+                                           repEthPrice: BigNumber,
+                                           stake: BigNumber): ParticipationRentabilityResult {
+    const gasCost = gasPrice.times(gasUsed);
+    const totalFeeProfit = fees.times(rep).div(stake.plus(rep));
+    const totalProfit = totalFeeProfit.minus(gasCost);
+    const profitPerRep = totalProfit.div(rep);
+    const profitPercent = totalProfit.div(gasCost.plus(rep.multipliedBy(repEthPrice)));
+    const profitPercentPA = new BigNumber(Math.pow(profitPercent.toNumber() + 1, 365 / 7) - 1);
     const gasPriceBreakEven = totalFeeProfit.div(gasUsed);
-    const divisor = fees.sub(gasCost);
-    let numRepBreakEven = new BN(NaN);
-    let numRepMaxProfitPerRep = new BN(0);
-    if (divisor.gtn(0)) {
-      numRepBreakEven = gasCost.mul(stake).subn(1).div(divisor).addn(1); //rounding gasCost * stake / divisor up
-      numRepMaxProfitPerRep = numRepBreakEven.add(numRepBreakEven.mul(numRepBreakEven.add(stake)).pow(new BN(0.5)));
+    const divisor = fees.minus(gasCost);
+    let numRepBreakEven = new BigNumber("+Infinity");
+    let numRepMaxProfitPerRep = new BigNumber(0);
+    if (divisor.gt(0)) {
+      numRepBreakEven = gasCost.times(stake).dividedBy(divisor);
+      numRepMaxProfitPerRep = numRepBreakEven.plus(numRepBreakEven.times(numRepBreakEven.plus(stake)).sqrt());
     }
     return {
       gasCost,
@@ -268,11 +252,11 @@ export default class AugurFeeWindow {
           feeWindowContract.methods.getEndTime().call()
         ]);
       }
-      const balance = this.web3.utils.toBN(strBalance);
-      const totalFeeStake = this.web3.utils.toBN(strTotalFeeStake);
+      const balance = new BigNumber(strBalance).shiftedBy(-18); //convert from Wei to ETH
+      const totalFeeStake = new BigNumber(strTotalFeeStake).shiftedBy(-18); //convert from Wei(REP) to REP
       const endTime = new Date(parseInt(strEndTime) * 1000);
       return {
-        address,
+        address: address.toLowerCase(),
         balance,
         totalFeeStake,
         endTime

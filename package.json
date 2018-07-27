@@ -24,8 +24,7 @@
   },
   "homepage": "https://github.com/blacktemplar/augur-fee-windows-info#readme",
   "dependencies": {
-    "@types/bn.js": "^4.11.1",
-    "bn.js": "^4.11.8",
+    "bignumber.js": "^7.2.1",
     "web3": "^1.0.0-beta.35"
   },
   "devDependencies": {
