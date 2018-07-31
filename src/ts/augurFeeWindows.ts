@@ -86,16 +86,14 @@ interface ParticipationRentabilityResult {
 }
 
 export default class AugurFeeWindow {
-  private universeContract: any;
-  private cashContract: any;
   private web3: Web3;
 
-  constructor() {
+  constructor(web3?: Web3) {
+    this.web3 = web3 || new Web3(Web3.givenProvider || DEFAULT_WEB3_PROVIDER);
+  }
 
-    this.web3 = new Web3(Web3.givenProvider || DEFAULT_WEB3_PROVIDER);
-
-    this.cashContract = new this.web3.eth.Contract(cashABI, DEFAULT_CASH_CONTRACT_ADDRESS);
-    this.universeContract = new this.web3.eth.Contract(universeABI, DEFAULT_UNIVERSE_CONTRACT_ADDRESS);
+  public setWeb3(web3: Web3): void {
+    this.web3 = web3;
   }
 
   /**
@@ -136,8 +134,8 @@ export default class AugurFeeWindow {
    */
   public async getCurrentFeeWindow(): Promise<FeeWindow> {
     try {
-      const address = await this.universeContract.methods.getCurrentFeeWindow().call() as string;
-      return this.getFeeWindow(address, false);
+      const address = await this.universeContract().methods.getCurrentFeeWindow().call() as string;
+      return await this.getFeeWindow(address, false);
     } catch (err) {
       throw new Error(`getCurrentFeeWindow: ${err}`);
     }
@@ -149,8 +147,8 @@ export default class AugurFeeWindow {
    */
   public async getNextFeeWindow(): Promise<FeeWindow> {
     try {
-      const address = await this.universeContract.methods.getNextFeeWindow().call() as string;
-      return this.getFeeWindow(address, false);
+      const address = await this.universeContract().methods.getNextFeeWindow().call() as string;
+      return await this.getFeeWindow(address, false);
     } catch (err) {
       throw new Error(`getNextFeeWindow: ${err}`);
     }
@@ -162,13 +160,12 @@ export default class AugurFeeWindow {
    */
   public async getPreviousFeeWindow(): Promise<FeeWindow> {
     try {
-      const address = await this.universeContract.methods.getPreviousFeeWindow().call() as string;
-      return this.getFeeWindow(address);
+      const address = await this.universeContract().methods.getPreviousFeeWindow().call() as string;
+      return await this.getFeeWindow(address);
     } catch (err) {
       throw new Error(`getPreviousFeeWindow: ${err}`);
     }
   }
-
 
   /**
    * Calculates some profit values for the given input parameter
@@ -239,7 +236,7 @@ export default class AugurFeeWindow {
         const blockNumber = await this.binarySearch(intEndTime, 0, currentBlockNumber, numBlocks);
 
         //small hack because of type problems (see also https://github.com/ethereum/web3.js/issues/1287)
-        const balanceOfMethod = this.cashContract.methods.balanceOf(address) as any;
+        const balanceOfMethod = this.cashContract().methods.balanceOf(address) as any;
         const getTotalFeeStakeMethod = feeWindowContract.methods.getTotalFeeStake() as any;
         [strBalance, strTotalFeeStake] = await Promise.all([
           balanceOfMethod.call(undefined, blockNumber),
@@ -247,7 +244,7 @@ export default class AugurFeeWindow {
         ]);
       } else {
         [strBalance, strTotalFeeStake, strEndTime] = await Promise.all([
-          this.cashContract.methods.balanceOf(address).call(),
+          this.cashContract().methods.balanceOf(address).call(),
           feeWindowContract.methods.getTotalFeeStake().call(),
           feeWindowContract.methods.getEndTime().call()
         ]);
@@ -264,6 +261,14 @@ export default class AugurFeeWindow {
     } catch (err) {
       throw new Error(`getFeeWindow: ${err}`);
     }
+  }
+
+  private cashContract(): any {
+    return new this.web3.eth.Contract(cashABI, DEFAULT_CASH_CONTRACT_ADDRESS);
+  }
+
+  private universeContract(): any {
+    return new this.web3.eth.Contract(universeABI, DEFAULT_UNIVERSE_CONTRACT_ADDRESS);
   }
 
   /**

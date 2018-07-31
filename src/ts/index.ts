@@ -10,11 +10,23 @@ function padString(x: string, size: number): string {
   return new Array(size).concat([x]).join('0').slice(-size);
 }
 
-function tM<T>(p: Promise<T>, n: number = 5): Promise<T> {
-  if (n === 1) {
-    return p;
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function tM<T>(func: (() => Promise<T>), n: number = 5): Promise<T> {
+  try {
+    return await func();
   }
-  return p.catch(() => tM(p, n - 1));
+  catch (err) {
+    if (n == 1) {
+      throw new Error(`tM: ${err}`);
+    } else {
+      await sleep(1000);
+      console.log("Retry...");
+      return tM(func, n - 1);
+    }
+  }
 }
 
 function getValueFrom(id: string): BigNumber {
@@ -56,7 +68,7 @@ function recalculate() {
 }
 
 async function retrievePreviousFeeWindow(): Promise<void> {
-  let previousFeeWindow = await tM(feeWindow.getPreviousFeeWindow());
+  let previousFeeWindow = await tM(() => feeWindow.getPreviousFeeWindow());
   document.getElementById("prev-fee-window").innerText = previousFeeWindow.address;
   document.getElementById("fee-prev").innerText = previousFeeWindow.balance.toString();
   document.getElementById("total-fee-stake-prev").innerText = previousFeeWindow.totalFeeStake.toString();
@@ -64,10 +76,10 @@ async function retrievePreviousFeeWindow(): Promise<void> {
 
 async function retrieveValues(): Promise<void> {
   let [repEthPrice, gasPrice, currentFeeWindow, nextFeeWindow] = await Promise.all([
-    tM(feeWindow.getRepEthPrice()),
-    tM(feeWindow.getGasPrice()),
-    tM(feeWindow.getCurrentFeeWindow()),
-    tM(feeWindow.getNextFeeWindow())
+    tM(() => feeWindow.getRepEthPrice()),
+    tM(() => feeWindow.getGasPrice()),
+    tM(() => feeWindow.getCurrentFeeWindow()),
+    tM(() => feeWindow.getNextFeeWindow())
   ]);
   //fill in the values
   document.getElementById("current-fee-window").innerText = currentFeeWindow.address;
