@@ -1,4 +1,4 @@
-import Web3 from 'web3';
+import * as Web3 from '../external/web3.min.js';
 import BigNumber from 'bignumber.js';
 
 const universeABI = [
@@ -86,13 +86,13 @@ interface ParticipationRentabilityResult {
 }
 
 export default class AugurFeeWindow {
-  private web3: Web3;
+  private web3: any;
 
-  constructor(web3?: Web3) {
+  constructor(web3?: any) {
     this.web3 = web3 || new Web3(Web3.givenProvider || DEFAULT_WEB3_PROVIDER);
   }
 
-  public setWeb3(web3: Web3): void {
+  public setWeb3(web3: any): void {
     this.web3 = web3;
   }
 
