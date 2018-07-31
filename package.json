@@ -1,6 +1,6 @@
 {
   "name": "augur-fee-window-infos",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "lib/augurFeeWindows.js",
   "scripts": {
