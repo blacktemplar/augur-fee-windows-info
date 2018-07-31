@@ -9,7 +9,7 @@
     "start": "webpack-dev-server --open --config webpack.dev.js",
     "build": "webpack --config webpack.prod.js",
     "deploy": "node_modules/.bin/push-dir --dir=dist --branch=gh-pages",
-    "buildLib": "tsc -p tsconfig-npm-lib.json"
+    "buildLib": "tsc -p tsconfig-npm-lib.json && cp src/external/web3.min.js lib && sed -i 's/\\.\\.\\/external/./g' lib/augurFeeWindows.js"
   },
   "files": [
     "lib"
