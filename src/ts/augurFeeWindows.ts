@@ -64,7 +64,7 @@ const feeWindowABI = [
 
 const DEFAULT_CASH_CONTRACT_ADDRESS = '0xd5524179cB7AE012f5B642C1D6D700Bbaa76B96b';
 const DEFAULT_UNIVERSE_CONTRACT_ADDRESS = '0xE991247b78F937D7B69cFC00f1A487A293557677';
-const DEFAULT_WEB3_PROVIDER = 'https://mainnet.infura.io/augur';
+const DEFAULT_WEB3_PROVIDER = 'https://mainnet.infura.io/v3/';
 
 export interface FeeWindow {
   address: string,
@@ -87,9 +87,11 @@ interface ParticipationRentabilityResult {
 
 export default class AugurFeeWindow {
   private web3: any;
+  private blockNumberCache: { [address: string] : number };
 
-  constructor(web3?: any) {
-    this.web3 = web3 || new Web3(Web3.givenProvider || DEFAULT_WEB3_PROVIDER);
+  constructor(web3?: any, infuraID?: string) {
+    this.web3 = web3 || new Web3(Web3.givenProvider || (DEFAULT_WEB3_PROVIDER + infuraID));
+    this.blockNumberCache = {};
   }
 
   public setWeb3(web3: any): void {
@@ -233,7 +235,13 @@ export default class AugurFeeWindow {
         if (numBlocks < 10) {
           numBlocks = 10; //get at least 10 blocks
         }
-        const blockNumber = await this.binarySearch(intEndTime, 0, currentBlockNumber, numBlocks);
+        let blockNumber = 0;
+        if (this.blockNumberCache.hasOwnProperty(address)) {
+          blockNumber = this.blockNumberCache[address];
+        } else {
+          blockNumber = await this.binarySearch(intEndTime, 0, currentBlockNumber, numBlocks);
+          this.blockNumberCache[address] = blockNumber;
+        }
 
         //small hack because of type problems (see also https://github.com/ethereum/web3.js/issues/1287)
         const balanceOfMethod = this.cashContract().methods.balanceOf(address) as any;

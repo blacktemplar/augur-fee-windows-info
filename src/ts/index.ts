@@ -111,7 +111,8 @@ async function retrieveValues(): Promise<void> {
   document.getElementById("content").style.display = "block";
 }
 
-let feeWindow = new AugurFeeWindow();
+let infuraProjectId = process.env.INFURA_PROJECT_ID || "";
+let feeWindow = new AugurFeeWindow(null, infuraProjectId);
 
 retrieveValues()
   .catch(e => console.log(e));
